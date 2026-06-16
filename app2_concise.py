@@ -6,7 +6,10 @@ import streamlit as st
 from bs4 import BeautifulSoup
 
 
-DB_PATH = "lamrim_nanputuo.db"
+DB_SOURCES = {
+    "南普陀版": "lamrim_nanputuo.db",
+    "鳳山寺版": "lamrim_fengshan.db",
+}
 CONTEXT_BEFORE = 1
 CONTEXT_AFTER = 1
 MIN_CHARS = 100
@@ -17,6 +20,12 @@ st.set_page_config(
     page_icon="📖",
     layout="wide",
 )
+
+query_params = st.query_params
+default_keyword = query_params.get("q", "")
+default_source = query_params.get("source", "")
+default_scope = query_params.get("scope", "")
+default_kepan = query_params.get("kepan", "")
 
 
 st.markdown(
@@ -55,7 +64,7 @@ st.markdown(
 
     /* 找到几个结果 */
     .result-count {
-        margin: 35px 0 28px 0;
+        margin: 35px 0 15px 0;
         font-size: 28px;
         font-weight: 800;
         color: #2D2A25;
@@ -63,7 +72,7 @@ st.markdown(
 
     /* 找到结果叫什么 */
     .result-keyword {
-        margin-left: 3px;
+        margin-left: 1px;
         color: #8C4303;
         font-weight: 800;
     }
@@ -91,13 +100,13 @@ st.markdown(
         display: flex;
         flex-direction: column;
         align-items: flex-start;
-        gap: 18px;
+        gap: 10px;
     }
 
     .lecture-left {
         display: flex;
         align-items: center;
-        gap: 18px;
+        gap: 10px;
     }
 
     .header-links p {
@@ -119,10 +128,8 @@ st.markdown(
         align-items: flex-end;
     }
 
-    /* 84讲的深色底 */
-    .lecture-badge {
+    .version-badge {
         display: inline-block;
-        margin-right: 16px;
         padding: 9px 18px;
         border-radius: 7px;
         background: #693000;
@@ -131,6 +138,19 @@ st.markdown(
         font-weight: 700;
     }
 
+    /* 84讲的深色底 */
+    .lecture-badge {
+        display: inline-block;
+        margin-right: 5px;
+        padding: 9px 18px;
+        border-radius: 7px;
+        background: #eee9e2;
+        color: #693000;
+        font-size: 18px;
+        font-weight: 700;
+    }
+
+    .result-index,
     .lecture-title {
         color: #693000;
         font-size: 27px;
@@ -202,6 +222,16 @@ st.markdown(
         line-height: 2 !important;
     }
 
+    .transcript-html-container blockquote,
+    .transcript-html-container blockquote p,
+    .transcript-html-container blockquote * {
+        color: #111 !important;
+        font-family: "STKaiti", "KaiTi", serif !important;
+        font-size: 20px !important;
+        font-weight: 500 !important;
+        line-height: 2 !important;
+    }
+
 
     /* 关键词 */
     .transcript-html-container strong,
@@ -220,6 +250,32 @@ st.markdown(
         opacity: 0.6;
     }
 
+    .focus-context-block {
+        opacity: 1 !important;
+    }
+
+    /* 一键回顶 */
+    .back-to-top {
+        position: fixed;
+        bottom: 25px;
+        right: 25px;
+
+        width: 56px;
+        height: 56px;
+
+        border-radius: 50%;
+        background: #693000;
+
+        color: white;
+        text-align: center;
+        line-height: 56px;
+
+        font-size: 24px;
+
+        cursor: pointer;
+        z-index: 9999;
+}
+
     a {
         color: #8c4303 !important;
     }
@@ -235,7 +291,7 @@ st.markdown(
 )
 
 st.markdown(
-    '<div class="subtitle">輸入關鍵詞，快速定位南普陀版廣論手抄稿中的講次、科判與上下文</div>',
+    '<div class="subtitle">輸入關鍵詞，快速定位廣論手抄稿中的講次、科判與上下文</div>',
     unsafe_allow_html=True,
 )
 
@@ -246,6 +302,7 @@ search_col, button_col = st.columns([8,2], vertical_alignment="bottom")
 with search_col:
     keyword = st.text_input(
         "請輸入關鍵詞：",
+        value=default_keyword,
         placeholder="請使用繁體字，需完全匹配，例如：皈依三寶、念死無常",
     )
 
@@ -253,6 +310,12 @@ with button_col:
     search_clicked = st.button("檢索", use_container_width=True)
 
 with st.expander("🔎 科判高級分類檢索"):
+
+    selected_sources = st.multiselect(
+        "搜尋版本：",
+        ["南普陀版", "鳳山寺版"],
+        default=["南普陀版"],
+    )
 
     scope_filter = st.multiselect(
         "三士道大階段：",
@@ -289,42 +352,65 @@ with st.expander("🔎 科判高級分類檢索"):
 
 def search_lectures(
     keyword: str,
+    selected_sources=None,
     scope_filters=None,
     subsection_filters=None,
     ) -> list[sqlite3.Row]:
 
-    query = """
-        SELECT volume, title, toc_title, section, subsection, url, content_html, content_text
-        FROM lectures
-        WHERE content_text LIKE ?
-    """
+    selected_sources = selected_sources or ["南普陀版"]
+    all_rows = []
 
-    params = [f"%{keyword}%"]
+    for source_name in selected_sources:
+        DB_PATH = DB_SOURCES[source_name]
 
-    if scope_filters:
-        placeholders = " OR ".join(["section LIKE ?"] * len(scope_filters))
-        query += f" AND ({placeholders})"
-        params.extend([f"%{item}%" for item in scope_filters])
+        query = """
+            SELECT volume, title, toc_title, section, subsection, url, content_html, content_text
+            FROM lectures
+            WHERE content_text LIKE ?
+        """
 
-    if subsection_filters:
-        placeholders = " OR ".join(["subsection LIKE ?"] * len(subsection_filters))
-        query += f" AND ({placeholders})"
-        params.extend([f"%{item}%" for item in subsection_filters])
+        params = [f"%{keyword}%"]
 
-    query += " ORDER BY volume"
+        if scope_filters:
+            placeholders = " OR ".join(["section LIKE ?"] * len(scope_filters))
+            query += f" AND ({placeholders})"
+            params.extend([f"%{item}%" for item in scope_filters])
 
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.row_factory = sqlite3.Row
-        return conn.execute(query, params).fetchall()
+        if subsection_filters:
+            placeholders = " OR ".join(["subsection LIKE ?"] * len(subsection_filters))
+            query += f" AND ({placeholders})"
+            params.extend([f"%{item}%" for item in subsection_filters])
+
+        query += " ORDER BY volume"
+
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(query, params).fetchall()
+            
+            for row in rows:
+                row_dict = dict(row)
+                row_dict["source"] = source_name
+                all_rows.append(row_dict)
+
+    return all_rows
 
 
 def prepare_html(content_html: str, keyword: str) -> Tuple[str, Optional[str]]:
     soup = BeautifulSoup(content_html or "", "html.parser")
 
-    blocks = [
-        p for p in soup.find_all("p")
-        if p.get_text(strip=True)
-    ]
+    # blocks = [
+    #     p for p in soup.find_all("p")
+    #     if p.get_text(strip=True)
+    # ]
+
+    blocks = []
+
+    for element in soup.find_all(["p", "blockquote", "h4"]):
+        if element.name == "p" and element.find_parent("blockquote"):
+            continue
+
+        if element.get_text(strip=True):
+            blocks.append(element)
 
     match_idx = next(
         (
@@ -380,14 +466,26 @@ def prepare_html(content_html: str, keyword: str) -> Tuple[str, Optional[str]]:
     visible_blocks = blocks[start:end]
 
     for i, block in enumerate(visible_blocks, start=start):
-        if i != match_idx:
+        if i == match_idx:
+            block["class"] = block.get("class", []) + ["focus-context-block"]
+        else:
             block["class"] = block.get("class", []) + ["faded-context-block"]
 
     return "".join(str(block) for block in visible_blocks), keyword_time
 
 
+st.markdown('<div id="top"></div>', unsafe_allow_html=True)
+
 if keyword:
-    rows = search_lectures(keyword, scope_filter, subsection_filter)
+    rows = search_lectures(keyword,selected_sources, scope_filter, subsection_filter)
+
+    st.query_params["q"] = keyword
+    if selected_sources:
+        st.query_params["source"] = ",".join(selected_sources)
+    if scope_filter:
+        st.query_params["scope"] = ",".join(scope_filter)
+    if subsection_filter:
+        st.query_params["kepan"] = ",".join(subsection_filter)
 
     st.markdown(
         f"""
@@ -399,7 +497,7 @@ if keyword:
         unsafe_allow_html=True,
     )
 
-    for row in rows:
+    for idx, row in enumerate(rows,start=1):
         html, keyword_time = prepare_html(row["content_html"], keyword)
 
         with st.container():
@@ -408,6 +506,8 @@ if keyword:
                 f'<div class="result-card-header">'
                 f'<div class="header-left">'
                 f'<div class="lecture-left">'
+                f'<div class="result-index">#{idx}</div>'
+                f'<span class="version-badge">{row["source"]}</span>'
                 f'<span class="lecture-badge">第 {row["volume"]} 講</span>'
                 f'<span class="lecture-title">{row["toc_title"] or row["title"]}</span>'
                 f'</div>'
@@ -428,7 +528,7 @@ if keyword:
                 f'</div>'
                 f'</div>'
 
-                f'<div class="context-label">原文語境前後雙向追溯 CONTEXT WINDOW</div>'
+                f'<div class="context-label">原文語境追溯 CONTEXT WINDOW</div>'
 
                 f'<div class="context-box">'
                 f'<div class="transcript-html-container">{html}</div>'
@@ -436,6 +536,43 @@ if keyword:
                 f'</div>'
             )
 
+            st.markdown("""
+                        <style>
+                        .back-to-top {
+                            position: fixed;
+                            bottom: 25px;
+                            right: 25px;
+
+                            width: 60px;
+                            height: 60px;
+
+                            border-radius: 50%;
+                            background: #693000;
+
+                            color: white !important;
+                            text-decoration: none !important;
+
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+
+                            font-size: 28px;
+                            font-weight: bold;
+
+                            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+                            z-index: 9999;
+                        }
+
+                        .back-to-top:hover {
+                            background: #8C4303;
+                        }
+                        </style>
+
+                        <a href="#top" class="back-to-top">
+                        ↑
+                        </a>
+                        """, unsafe_allow_html=True)
+            
             st.markdown(card_html, unsafe_allow_html=True)
 
 # streamlit run app2_concise.py
