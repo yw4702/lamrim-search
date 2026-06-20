@@ -4,6 +4,10 @@ from textwrap import dedent
 
 import streamlit as st
 from bs4 import BeautifulSoup
+from opencc import OpenCC
+
+cc_s2t = OpenCC("s2t")   # 简→繁
+cc_t2s = OpenCC("t2s")
 
 
 DB_SOURCES = {
@@ -284,50 +288,86 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# 语言
+if "lang" not in st.session_state:
+    st.session_state.lang = "繁體"
+
+lang_col1, lang_col2 = st.columns([20, 1])
+
+with lang_col2:
+    button_label = "🌐 繁" if st.session_state.lang=="繁體" else "🌐 简"
+    if st.button(button_label):
+        st.session_state.lang = (
+            "簡體"
+            if st.session_state.lang=="繁體"
+            else "繁體"
+        )
+        st.rerun()
+display_lang = st.session_state.lang
+
+def t(text):
+    text = str(text or "")
+    return cc_t2s.convert(text) if display_lang == "簡體" else text
+
+
 
 st.markdown(
-    '<div class="main-title">廣論智慧搜尋</div>',
+    f'<div class="main-title">{t("廣論智慧搜尋")}</div>',
     unsafe_allow_html=True,
 )
 
 st.markdown(
-    '<div class="subtitle">輸入關鍵詞，快速定位廣論手抄稿中的講次、科判與上下文</div>',
+    f'<div class="subtitle">{t("輸入關鍵詞，快速定位廣論手抄稿中的講次、科判與上下文")}</div>',
     unsafe_allow_html=True,
 )
-
 
 # 搜索栏
 search_col, button_col = st.columns([8,2], vertical_alignment="bottom")
 
 with search_col:
     keyword = st.text_input(
-        "請輸入關鍵詞：",
+        t("請輸入關鍵詞："),
         value=default_keyword,
-        placeholder="請使用繁體字，需完全匹配，例如：皈依三寶、念死無常",
+        placeholder=t("需完全匹配，例如：皈依三寶、念死無常"),
     )
+
+    search_keyword = cc_s2t.convert(keyword)
+
+display_keyword = t(search_keyword)
 
 with button_col:
-    search_clicked = st.button("檢索", use_container_width=True)
+    search_clicked = st.button(t("檢索"), use_container_width=True)
 
-with st.expander("🔎 科判高級分類檢索"):
+with st.expander(t("🔎 科判高級分類檢索")):
 
-    selected_sources = st.multiselect(
-        "搜尋版本：",
-        ["南普陀版", "鳳山寺版"],
-        default=["南普陀版"],
-    )
+    st.markdown(f"**{t('搜尋版本：')}**")
+    selected_sources = []
+    col1, col2, _ = st.columns([1.2, 1.2, 8])
 
-    scope_filter = st.multiselect(
-        "三士道大階段：",
-        ["顯示全部", "道前基礎", "下士道", "中士道", "上士道"],
-        default=[],
-        placeholder="顯示全部",
-    )
+    with col1: 
+        if st.checkbox(t("南普陀版"), value=True,key="source_nanputuo"):
+            selected_sources.append("南普陀版")
 
-    subsection_filter = st.multiselect(
-        "具體科判：",
-        [
-            "全部步驟",
+    with col2:
+        if st.checkbox(t("鳳山寺版"),value=False,key="source_fengshan"):
+            selected_sources.append("鳳山寺版")
+
+    st.markdown(f"**{t('三士道：')}**")
+
+    scope_options = ["道前基礎", "下士道", "中士道", "上士道"]
+
+    selected_scopes = []
+    cols = st.columns(4)
+
+    for i, item in enumerate(scope_options):
+        with cols[i % 4]:
+            if st.checkbox(t(item), key=f"scope_{item}"):
+                selected_scopes.append(item)
+
+    scope_filter = selected_scopes
+
+    st.markdown(f"**{t('具體科判：')}**")
+    subsection_options = [
             "皈敬頌",
             "造者殊勝",
             "教授殊勝",
@@ -344,14 +384,22 @@ with st.expander("🔎 科判高級分類檢索"):
             "十二緣起",
             "大乘菩提心",
             "六波羅蜜多"
-        ],
-        default=[],
-        placeholder="顯示全部",
-    )
+        ]
+    
+    selected_subsections = []
+    cols = st.columns(4)
+
+    for i, item in enumerate(subsection_options):
+        with cols[i % 4]:
+            if st.checkbox(t(item), key=f"subsection_{item}"):
+                selected_subsections.append(item)
+
+    display_map = {t(x): x for x in subsection_options}
+    subsection_filter = selected_subsections
     
 
 def search_lectures(
-    keyword: str,
+    search_keyword: str,
     selected_sources=None,
     scope_filters=None,
     subsection_filters=None,
@@ -369,7 +417,7 @@ def search_lectures(
             WHERE content_text LIKE ?
         """
 
-        params = [f"%{keyword}%"]
+        params = [f"%{search_keyword}%"]
 
         if scope_filters:
             placeholders = " OR ".join(["section LIKE ?"] * len(scope_filters))
@@ -395,7 +443,7 @@ def search_lectures(
     return all_rows
 
 
-def prepare_html(content_html: str, keyword: str) -> Tuple[str, Optional[str]]:
+def prepare_html(content_html: str, search_keyword: str) -> Tuple[str, Optional[str]]:
     soup = BeautifulSoup(content_html or "", "html.parser")
 
     # blocks = [
@@ -415,7 +463,7 @@ def prepare_html(content_html: str, keyword: str) -> Tuple[str, Optional[str]]:
     match_idx = next(
         (
             i for i, block in enumerate(blocks)
-            if keyword in block.get_text()
+            if search_keyword in block.get_text()
         ),
         None,
     )
@@ -437,10 +485,10 @@ def prepare_html(content_html: str, keyword: str) -> Tuple[str, Optional[str]]:
         if parent.name in {"script", "style", "mark"}:
             continue
 
-        if keyword in node:
+        if search_keyword in node:
             highlighted_html = str(node).replace(
-                keyword,
-                f"<strong>{keyword}</strong>",
+                search_keyword,
+                f"<strong>{search_keyword}</strong>",
             )
 
             node.replace_with(
@@ -473,13 +521,25 @@ def prepare_html(content_html: str, keyword: str) -> Tuple[str, Optional[str]]:
 
     return "".join(str(block) for block in visible_blocks), keyword_time
 
+def convert_html(html):
+    if display_lang != "簡體":
+        return html
+
+    soup = BeautifulSoup(html, "html.parser")
+
+    for node in soup.find_all(string=True):
+        if node.parent.name in ["script", "style"]:
+            continue
+        node.replace_with(cc_t2s.convert(str(node)))
+
+    return str(soup)
 
 st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 
-if keyword:
-    rows = search_lectures(keyword,selected_sources, scope_filter, subsection_filter)
+if search_keyword:
+    rows = search_lectures(search_keyword,selected_sources, scope_filter, subsection_filter)
 
-    st.query_params["q"] = keyword
+    st.query_params["q"] = search_keyword
     if selected_sources:
         st.query_params["source"] = ",".join(selected_sources)
     if scope_filter:
@@ -490,15 +550,16 @@ if keyword:
     st.markdown(
         f"""
         <div class="result-count">
-            找到 {len(rows)} 個講次包含：
-            <span class="result-keyword">{keyword}</span>
+            {t("找到")} {len(rows)} {t("個講次包含")}：
+            <span class="result-keyword">{display_keyword}</span>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
     for idx, row in enumerate(rows,start=1):
-        html, keyword_time = prepare_html(row["content_html"], keyword)
+        html, keyword_time = prepare_html(row["content_html"], search_keyword)
+        html = convert_html(html)
 
         with st.container():
             card_html = (
@@ -507,9 +568,8 @@ if keyword:
                 f'<div class="header-left">'
                 f'<div class="lecture-left">'
                 f'<div class="result-index">#{idx}</div>'
-                f'<span class="version-badge">{row["source"]}</span>'
-                f'<span class="lecture-badge">第 {row["volume"]} 講</span>'
-                f'<span class="lecture-title">{row["toc_title"] or row["title"]}</span>'
+                f'<span class="version-badge">{t(row["source"])}</span>'
+                f'<span class="lecture-title">{t(row["toc_title"] or row["title"])}</span>'
                 f'</div>'
 
                 f'<div class="header-links">'
@@ -517,18 +577,18 @@ if keyword:
                 # f'<p><strong>標題：</strong> {row["toc_title"] or row["title"]}</p>'
                 # f'<p><strong>科判：</strong> {row["section"] or ""}</p>'
                 # f'<p><strong>廣論段落：</strong> {row["subsection"] or ""}</p>'
-                f'<p><strong>原文：</strong> <a href="{row["url"]}">打開原文網頁</a></p>'
+                f'<p><strong>原文：</strong> <a href="{row["url"]}">{t("打開網頁")}</a></p>'
                 f'{f"<p><strong>時間：</strong> {keyword_time}</p>" if keyword_time else ""}'
                 f'</div>'
                 f'</div>'
 
                 f'<div class="header-right">'
-                f'<span class="tag tag-kepan">科判：{row["section"] or ""}</span>'
-                f'<span class="tag">廣論段落：{row["subsection"] or ""}</span>'
+                f'<span class="tag tag-kepan">科判：{t(row["section"]) or ""}</span>'
+                f'<span class="tag">{t("廣論段落")}：{t(row["subsection"]) or ""}</span>'
                 f'</div>'
                 f'</div>'
 
-                f'<div class="context-label">原文語境追溯 CONTEXT WINDOW</div>'
+                f'<div class="context-label">{t("原文語境追溯")} CONTEXT WINDOW</div>'
 
                 f'<div class="context-box">'
                 f'<div class="transcript-html-container">{html}</div>'
@@ -540,7 +600,7 @@ if keyword:
                         <style>
                         .back-to-top {
                             position: fixed;
-                            bottom: 25px;
+                            bottom: 90px;
                             right: 25px;
 
                             width: 60px;
