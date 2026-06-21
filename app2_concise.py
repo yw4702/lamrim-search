@@ -25,12 +25,16 @@ st.set_page_config(
     layout="wide",
 )
 
+#字体大小
+if "font_scale" not in st.session_state:
+    st.session_state.font_scale = 1
+
+
 query_params = st.query_params
 default_keyword = query_params.get("q", "")
 default_source = query_params.get("source", "")
 default_scope = query_params.get("scope", "")
 default_kepan = query_params.get("kepan", "")
-
 
 st.markdown(
     """
@@ -68,8 +72,8 @@ st.markdown(
 
     /* 找到几个结果 */
     .result-count {
-        margin: 35px 0 15px 0;
-        font-size: 28px;
+        margin: -24px 0 12 0 !important;
+        font-size: 24px;
         font-weight: 800;
         color: #2D2A25;
     }
@@ -79,6 +83,7 @@ st.markdown(
         margin-left: 1px;
         color: #8C4303;
         font-weight: 800;
+        font-size: 24px !important;
     }
 
     /* 整张卡片 */
@@ -115,7 +120,6 @@ st.markdown(
 
     .header-links p {
         margin: 0 0 6px 0 !important;
-        font-size: 16px;
         line-height: 1.5;
         color: #2D2A25;
     }
@@ -142,22 +146,10 @@ st.markdown(
         font-weight: 700;
     }
 
-    /* 84讲的深色底 */
-    .lecture-badge {
-        display: inline-block;
-        margin-right: 5px;
-        padding: 9px 18px;
-        border-radius: 7px;
-        background: #eee9e2;
-        color: #693000;
-        font-size: 18px;
-        font-weight: 700;
-    }
-
     .result-index,
     .lecture-title {
         color: #693000;
-        font-size: 27px;
+        font-size: {27 * scale}px;
         font-weight: 700;
     }
 
@@ -212,7 +204,6 @@ st.markdown(
     .transcript-html-container p {
         margin: 0 0 24px 0 !important;
         color: #080705 !important;
-        font-size: 16px !important;
         line-height: 1.9 !important;
         font-weight: 400 !important;
     }
@@ -221,7 +212,6 @@ st.markdown(
     .transcript-html-container span {
         color: #111 !important;
         font-family: "STKaiti", "KaiTi", serif !important;
-        font-size: 20px !important;
         font-weight: 500 !important;
         line-height: 2 !important;
     }
@@ -231,7 +221,6 @@ st.markdown(
     .transcript-html-container blockquote * {
         color: #111 !important;
         font-family: "STKaiti", "KaiTi", serif !important;
-        font-size: 20px !important;
         font-weight: 500 !important;
         line-height: 2 !important;
     }
@@ -278,7 +267,41 @@ st.markdown(
 
         cursor: pointer;
         z-index: 9999;
-}
+    }
+
+    div[data-testid="stExpander"] {
+        margin-bottom: 0px !important;
+    }
+
+    /* 字体整个按钮 */
+    button[kind="tertiary"]{
+        background:#eee9e2 !important;
+        color:#5b4a3c !important;
+
+        border:none !important;
+        border-radius:999px !important;
+
+        height:34px !important;
+        min-width:34px !important;
+
+        transition:all .15s ease;
+    }
+
+    /* hover */
+    button[kind="tertiary"]:hover{
+        background:#e3ddd5 !important;
+    }
+
+    /* 点击时 */
+    button[kind="tertiary"]:active{
+        background:white !important;
+    }
+
+    /* 字 */
+    button[kind="tertiary"] p{
+        color:#5b4a3c !important;
+        font-weight:600 !important;
+    }
 
     a {
         color: #8c4303 !important;
@@ -292,10 +315,10 @@ st.markdown(
 if "lang" not in st.session_state:
     st.session_state.lang = "繁體"
 
-lang_col1, lang_col2 = st.columns([20, 1])
+lang_col1, lang_col2 = st.columns([18, 2])
 
 with lang_col2:
-    button_label = "🌐 繁" if st.session_state.lang=="繁體" else "🌐 简"
+    button_label = "🌐 繁體" if st.session_state.lang=="繁體" else "🌐 简体"
     if st.button(button_label):
         st.session_state.lang = (
             "簡體"
@@ -309,7 +332,13 @@ def t(text):
     text = str(text or "")
     return cc_t2s.convert(text) if display_lang == "簡體" else text
 
-
+st.markdown("""
+            <style>
+            div[data-testid="stButton"] button {
+                white-space: nowrap !important;
+            }
+            </style>
+            """, unsafe_allow_html=True)
 
 st.markdown(
     f'<div class="main-title">{t("廣論智慧搜尋")}</div>',
@@ -322,6 +351,7 @@ st.markdown(
 )
 
 # 搜索栏
+# 关键词
 search_col, button_col = st.columns([8,2], vertical_alignment="bottom")
 
 with search_col:
@@ -536,6 +566,41 @@ def convert_html(html):
 
 st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 
+scale = st.session_state.font_scale
+st.markdown(f"""
+            <style>
+            .result-card,
+            .context-label,
+            .header-links p {{
+                font-size: {16 * scale}px !important;
+            }}
+
+            .result-index,
+            .lecture-title {{
+                font-size: {27 * scale}px !important;
+            }}
+
+            .version-badge {{
+                font-size: {18 * scale}px !important;
+            }}
+
+            .tag {{
+                font-size: {17 * scale}px !important;
+            }}
+
+            .transcript-html-container p {{
+                font-size:{16*scale}px !important;
+            }}
+
+            .transcript-html-container span,
+            .transcript-html-container blockquote,
+            .transcript-html-container blockquote p,
+            .transcript-html-container blockquote * {{
+                font-size:{20*scale}px !important;
+            }}
+            </style>
+            """, unsafe_allow_html=True)
+
 if search_keyword:
     rows = search_lectures(search_keyword,selected_sources, scope_filter, subsection_filter)
 
@@ -546,16 +611,61 @@ if search_keyword:
         st.query_params["scope"] = ",".join(scope_filter)
     if subsection_filter:
         st.query_params["kepan"] = ",".join(subsection_filter)
+    
 
-    st.markdown(
-        f"""
-        <div class="result-count">
-            {t("找到")} {len(rows)} {t("個講次包含")}：
-            <span class="result-keyword">{display_keyword}</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    result_left, result_right = st.columns([7.6, 2.4], vertical_alignment="top")
+
+    with result_left:
+        st.markdown(
+            f"""
+            <div class="result-count">
+                {t("找到")} {len(rows)} {t("個講次包含")}：
+                <span class="result-keyword">{display_keyword}</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    with result_right:
+        st.markdown(
+            """
+            <style>
+            div[data-testid="stHorizontalBlock"]:has(button[kind="tertiary"]) {
+                margin-top: -20px !important;
+                margin-bottom: -20px !important;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        c11, c12, c13, c14, c15 = st.columns(5, gap="small")
+
+        with c11:
+            if st.button("⊖", key="font_minus", type="tertiary"):
+                st.session_state.font_scale = max(0.5, st.session_state.font_scale - 0.1)
+                st.rerun()
+
+        with c12:
+            if st.button("小", key="font_small", type="tertiary"):
+                st.session_state.font_scale = 0.85
+                st.rerun()
+
+        with c13:
+            if st.button("中", key="font_medium", type="tertiary"):
+                st.session_state.font_scale = 1
+                st.rerun()
+
+        with c14:
+            if st.button("大", key="font_large", type="tertiary"):
+                st.session_state.font_scale = 1.25
+                st.rerun()
+
+        with c15:
+            if st.button("⊕", key="font_plus", type="tertiary"):
+                st.session_state.font_scale = min(1.75, st.session_state.font_scale + 0.1)
+                st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
+
 
     for idx, row in enumerate(rows,start=1):
         html, keyword_time = prepare_html(row["content_html"], search_keyword)
@@ -636,3 +746,6 @@ if search_keyword:
             st.markdown(card_html, unsafe_allow_html=True)
 
 # streamlit run app2_concise.py
+# git add .
+# git commit -m "这版update内容"
+# git push origin main
