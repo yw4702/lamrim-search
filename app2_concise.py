@@ -634,30 +634,63 @@ if search_keyword:
                 margin-top: -20px !important;
                 margin-bottom: -20px !important;
             }
+
+            button[kind="primary"]{
+                background:#8C4303 !important;
+                color:white !important;
+                border:none !important;
+                border-radius:999px !important;
+
+                height: 34px !important;
+                min-width: 34px !important;
+                width: 34px !important;
+                padding: 0 !important;
+            }
+
+            button[kind="primary"] p{
+                color:white !important;
+                font-weight:700 !important;
+            }
+
+            .font-control-title {
+                text-align: left;
+                margin: -18px 0 30px 0;
+                color: #5b4a3c;
+                font-size: 14px;
+                font-weight: 600;
+            }
             </style>
             """,
+            unsafe_allow_html=True,
+        )
+
+        def btn_type(value):
+            return "primary" if st.session_state.font_scale == value else "tertiary"
+
+        st.markdown(
+            f'<div class="font-control-title">{t("文字縮放")}：</div>',
             unsafe_allow_html=True,
         )
         c11, c12, c13, c14, c15 = st.columns(5, gap="small")
 
         with c11:
             if st.button("⊖", key="font_minus", type="tertiary"):
-                st.session_state.font_scale = max(0.5, st.session_state.font_scale - 0.1)
+                st.session_state.font_scale = max(0.85, st.session_state.font_scale - 0.1)
                 st.rerun()
 
         with c12:
-            if st.button("小", key="font_small", type="tertiary"):
-                st.session_state.font_scale = 0.85
-                st.rerun()
-
-        with c13:
-            if st.button("中", key="font_medium", type="tertiary"):
+            if st.button("小", key="font_small", type=btn_type(1.0)):
                 st.session_state.font_scale = 1
                 st.rerun()
 
-        with c14:
-            if st.button("大", key="font_large", type="tertiary"):
+        with c13:
+            if st.button("中", key="font_medium", type=btn_type(1.25)):
                 st.session_state.font_scale = 1.25
+                st.rerun()
+
+        with c14:
+            if st.button("大", key="font_large", type=btn_type(1.5)):
+                st.session_state.font_scale = 1.5
                 st.rerun()
 
         with c15:
