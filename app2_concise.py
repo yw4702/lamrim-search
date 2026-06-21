@@ -3,6 +3,7 @@ from typing import Optional, Tuple
 from textwrap import dedent
 
 import streamlit as st
+import streamlit.components.v1 as components
 from bs4 import BeautifulSoup
 from opencc import OpenCC
 
@@ -24,6 +25,8 @@ st.set_page_config(
     page_icon="📖",
     layout="wide",
 )
+
+st.markdown('<div id="top"></div>', unsafe_allow_html=True)
 
 #字体大小
 if "font_scale" not in st.session_state:
@@ -306,6 +309,97 @@ st.markdown(
     a {
         color: #8c4303 !important;
     }
+
+    @media (max-width: 768px) {
+
+        .main-title {
+            font-size: 30px !important;
+            margin-top: 20px !important;
+        }
+
+        .subtitle {
+            font-size: 15px !important;
+            margin-bottom: 24px !important;
+        }
+
+        div[data-testid="stHorizontalBlock"]:has(.result-count) {
+            margin-bottom: 8px !important;
+        }
+
+        div[data-testid="stHorizontalBlock"]:has(.result-count) > div:nth-child(2) {
+            display: none !important;
+            height: 0 !important;
+            min-height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .result-count,
+        .result-count p,
+        .result-keyword {
+            font-size: 24px !important;
+            line-height: 1.35 !important;
+            margin-bottom: -10px !important;
+        }
+
+        /* 手机端：字体不显示 */
+        .font-control-title {
+            display: none !important;
+        }
+
+        button[kind="primary"],
+        button[kind="tertiary"] {
+            display: none !important;
+        }
+
+        /* 卡片头部手机端改成上下排列 */
+        .result-card-header {
+            display: block !important;
+            padding: 22px 20px !important;
+        }
+
+        .lecture-left {
+            flex-wrap: wrap !important;
+            gap: 10px !important;
+        }
+
+        .version-badge {
+            padding: 8px 14px !important;
+            font-size: 18px !important;
+            writing-mode: horizontal-tb !important;
+            white-space: nowrap !important;
+        }
+
+        .header-right {
+            align-items: flex-start !important;
+            margin-top: 18px !important;
+        }
+
+        .tag {
+            font-size: 16px !important;
+            max-width: 100% !important;
+            white-space: normal !important;
+        }
+
+        .context-box {
+            margin: 0 16px 24px 16px !important;
+            padding: 22px 18px !important;
+        }
+
+        .transcript-html-container span,
+        .transcript-html-container blockquote,
+        .transcript-html-container blockquote p,
+        .transcript-html-container blockquote * {
+            font-family: "Songti TC", "Songti SC", "STSong", "Noto Serif TC", serif !important;
+        }
+
+        .back-to-top {
+            width: 52px !important;
+            height: 52px !important;
+            right: 18px !important;
+            bottom: 85px !important;
+        }
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -564,8 +658,6 @@ def convert_html(html):
 
     return str(soup)
 
-st.markdown('<div id="top"></div>', unsafe_allow_html=True)
-
 scale = st.session_state.font_scale
 st.markdown(f"""
             <style>
@@ -613,7 +705,7 @@ if search_keyword:
         st.query_params["kepan"] = ",".join(subsection_filter)
     
 
-    result_left, result_right = st.columns([7.6, 2.4], vertical_alignment="top")
+    result_left, result_right = st.columns([7.6, 2.4], vertical_alignment="center")
 
     with result_left:
         st.markdown(
@@ -765,7 +857,7 @@ if search_keyword:
                             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
                             z-index: 9999;
                         }
-
+                        
                         .back-to-top:hover {
                             background: #8C4303;
                         }
@@ -774,6 +866,7 @@ if search_keyword:
                         <a href="#top" class="back-to-top">
                         ↑
                         </a>
+                        
                         """, unsafe_allow_html=True)
             
             st.markdown(card_html, unsafe_allow_html=True)
