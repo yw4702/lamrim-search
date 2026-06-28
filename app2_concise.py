@@ -6,8 +6,9 @@ import streamlit as st
 import streamlit.components.v1 as components
 from bs4 import BeautifulSoup
 from opencc import OpenCC
+from embeddings.semantic_search import semantic_search
 
-cc_s2t = OpenCC("s2t")   # 简→繁
+cc_s2t = OpenCC("s2tw")   # 简→繁
 cc_t2s = OpenCC("t2s")
 
 
@@ -462,21 +463,53 @@ display_keyword = t(search_keyword)
 with button_col:
     search_clicked = st.button(t("檢索"), use_container_width=True)
 
+# search_mode = st.radio(
+#     t("搜尋模式："),
+#     [t("精確搜尋"), t("智慧模糊搜尋")],
+#     horizontal=True,
+# )
+
+
+st.markdown(
+    f"""
+    <div style="font-weight:700;
+    margin-bottom:-8px;">
+    {t("搜尋版本：")}
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+col1, col2, _ = st.columns([1.6, 1.6, 7.2])
+selected_sources = []
+
+with col1:
+    if st.checkbox(
+        t("南普陀版"),
+        value=True,
+        key="source_nanputuo",
+    ):
+        selected_sources.append("南普陀版")
+
+with col2:
+    if st.checkbox(
+        t("鳳山寺版"),
+        key="source_fengshan",
+    ):
+        selected_sources.append("鳳山寺版")
+
+
 with st.expander(t("🔎 科判高級分類檢索")):
 
-    st.markdown(f"**{t('搜尋版本：')}**")
-    selected_sources = []
-    col1, col2, _ = st.columns([1.2, 1.2, 8])
-
-    with col1: 
-        if st.checkbox(t("南普陀版"), value=True,key="source_nanputuo"):
-            selected_sources.append("南普陀版")
-
-    with col2:
-        if st.checkbox(t("鳳山寺版"),value=False,key="source_fengshan"):
-            selected_sources.append("鳳山寺版")
-
-    st.markdown(f"**{t('三士道：')}**")
+    st.markdown(
+        f"""
+        <div style="font-weight:700
+        margin-bottom:-8px;">
+        {t('三士道：')}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     scope_options = ["道前基礎", "下士道", "中士道", "上士道"]
 
@@ -490,7 +523,15 @@ with st.expander(t("🔎 科判高級分類檢索")):
 
     scope_filter = selected_scopes
 
-    st.markdown(f"**{t('具體科判：')}**")
+    st.markdown(
+        f"""
+        <div style="font-weight:700
+        margin-bottom:-8px;">
+        {t('具體科判：')}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     subsection_options = [
             "皈敬頌",
             "造者殊勝",
@@ -694,7 +735,10 @@ st.markdown(f"""
             """, unsafe_allow_html=True)
 
 if search_keyword:
-    rows = search_lectures(search_keyword,selected_sources, scope_filter, subsection_filter)
+    # if search_mode == t("智慧模糊搜尋"):
+    #     rows = semantic_search(search_keyword,selected_sources=selected_sources,top_k=20,)
+    # else:
+    rows = search_lectures(search_keyword,selected_sources,scope_filter,subsection_filter,)
 
     st.query_params["q"] = search_keyword
     if selected_sources:
@@ -824,6 +868,7 @@ if search_keyword:
                 f'</div>'
 
                 f'<div class="context-label">{t("原文語境追溯")} CONTEXT WINDOW</div>'
+                # f'<p><strong>{t("相似度")}：</strong> {row["score"]:.2f}</p>" if "score" in row else "'
 
                 f'<div class="context-box">'
                 f'<div class="transcript-html-container">{html}</div>'
